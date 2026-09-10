@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b4f45">
+<title>Prayer Times — Shafi'i</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Segoe UI,Arial,sans-serif}body{background:#071f1b;color:#18312d}
+.page{min-height:100vh;padding:18px;display:flex;justify-content:center;background:linear-gradient(135deg,rgba(4,31,27,.94),rgba(10,75,64,.9)),url('https://images.unsplash.com/photo-1564769625392-651b89c0d7a7?auto=format&fit=crop&w=1800&q=85') center/cover fixed}
+.card{width:min(100%,560px);background:rgba(255,255,255,.97);border-radius:28px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.35)}
+.hero{height:235px;position:relative;background:linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.72)),url('https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=1400&q=85') center/cover;display:flex;align-items:flex-end}
+.hero-content{padding:25px;color:white;width:100%}.bismillah{font-size:20px;direction:rtl;margin-bottom:8px}.hero h1{margin:0;font-size:31px}.hero p{margin:7px 0 0;opacity:.9;font-size:14px}.content{padding:24px}
+.location-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}.location-name{font-size:18px;font-weight:700;color:#104e45}.location-sub{font-size:12px;color:#78908b;margin-top:3px}
+button{border:0;border-radius:13px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;background:#0b806d;color:#fff;box-shadow:0 7px 18px rgba(11,128,109,.2)}button:hover{transform:translateY(-1px)}button:active{transform:scale(.98)}button.secondary{background:#edf5f2;color:#0b6658;box-shadow:none}
+#status{font-size:13px;color:#a65f18;margin:8px 0 14px;line-height:1.45}.hint{font-size:11px;color:#82928e;margin:-6px 0 15px}
+.manual{display:none;padding:14px;background:#f4f8f6;border-radius:16px;margin-bottom:16px}.manual-row{display:flex;gap:8px}.manual input{flex:1;min-width:0;border:1px solid #d6e3df;border-radius:11px;padding:12px;font-size:15px;outline:none}.manual input:focus{border-color:#0b806d;box-shadow:0 0 0 3px rgba(11,128,109,.1)}#cityStatus{font-size:12px;color:#a65f18;margin-top:8px}
+.table-wrap{border:1px solid #e5eeeb;border-radius:18px;overflow:hidden}.times{width:100%;border-collapse:collapse}.times th{background:#edf5f2;color:#24564d;font-size:12px;text-transform:uppercase;letter-spacing:.06em}.times th,.times td{padding:15px 16px;text-align:left}.times tr:not(:last-child) td{border-bottom:1px solid #edf1ef}.times td:last-child{font-weight:800;text-align:right;color:#124e45}.times .special td{background:#f0faf7}.times .special td:last-child{color:#0b806d}
+.note{margin-top:15px;padding:13px 14px;background:#fff8ea;border:1px solid #f2dfb7;border-radius:14px;font-size:11px;line-height:1.55;color:#765a2a}.footer{text-align:center;font-size:10px;color:#8a9a96;margin-top:17px;line-height:1.5}
+.loading{opacity:.65}.hidden{display:none!important}
+@media(max-width:600px){.page{padding:0;background:#071f1b}.card{width:100%;min-height:100vh;border-radius:0}.hero{height:245px}.content{padding:20px 16px 28px}.location-row{align-items:flex-start}.location-row button{padding:10px 12px}.manual-row{flex-direction:column}.manual-row button{width:100%}.times th,.times td{padding:14px 12px}.hero h1{font-size:28px}}
+</style>
+</head>
+<body>
+<div class="page"><main class="card">
+<section class="hero"><div class="hero-content"><div class="bismillah">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</div><h1>Prayer Times</h1><p>Accurate daily prayer times based on the selected Shafi'i calculation rules.</p></div></section>
+<div class="content">
+<div class="location-row"><div><div id="locationName" class="location-name">Location not set</div><div id="locationSub" class="location-sub">Use GPS or enter your city</div></div><button id="locationBtn">📍 Use GPS</button></div>
+<div id="status"></div><div id="secureHint" class="hint">For mobile GPS, open this page over HTTPS and allow Location permission.</div>
+<div id="manualLocation" class="manual"><strong>Use your city instead</strong><div class="manual-row" style="margin-top:10px"><input id="cityInput" placeholder="e.g. Hyderabad, India" autocomplete="address-level2"><button id="cityBtn">Find City</button></div><div id="cityStatus"></div></div>
+<div class="table-wrap"><table class="times"><thead><tr><th>Prayer</th><th>Time</th></tr></thead><tbody id="timesBody"><tr><td colspan="2" style="text-align:center;color:#899894">Select a location to calculate times.</td></tr></tbody></table></div>
+<div class="note"><strong>Calculation basis:</strong> Fajr at 20° below the astronomical horizon; Isha at 18°; Maghrib is 4 minutes after the API's astronomical sunset time; Dhuhr at solar noon; Asr using the Shafi'i/majority shadow factor (one object-length plus the noon shadow).</div>
+<div class="footer">Prayer times are calculated for the selected coordinates. Local observance may follow an officially issued mosque/calendar timetable.</div>
+</div></main></div>
+<script>
+const $=id=>document.getElementById(id);
+const locationBtn=$('locationBtn'), manual=$('manualLocation');
+
+locationBtn.addEventListener('click', requestGPS);
+$('cityBtn').addEventListener('click', searchCity);
+$('cityInput').addEventListener('keydown',e=>{if(e.key==='Enter')searchCity()});
+
+function requestGPS(){
+  $('status').textContent='Requesting your location…';
+  manual.style.display='none';
+  if(!window.isSecureContext && location.hostname!=='localhost'){
+    $('status').textContent='Mobile browsers normally block GPS on non-HTTPS pages. Use the city option below.';
+    manual.style.display='block'; return;
+  }
+  if(!navigator.geolocation){$('status').textContent='This browser does not support GPS. Use the city option below.';manual.style.display='block';return;}
+  navigator.geolocation.getCurrentPosition(onGPS,onGPSError,{enableHighAccuracy:false,timeout:20000,maximumAge:600000});
+}
+function onGPS(pos){
+  const lat=pos.coords.latitude,lon=pos.coords.longitude;
+  $('locationName').textContent='Current location';$('locationSub').textContent=`${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  $('status').textContent='Location found. Calculating prayer times…';$('secureHint').classList.add('hidden');
+  loadPrayerTimes(lat,lon,'Current location');
+}
+function onGPSError(err){
+  const messages={1:'Location permission was denied. Allow Location in your browser settings, then try again.',2:'Your device could not determine its location. Try again or use your city.',3:'GPS took too long to respond. Try again or use your city.'};
+  $('status').textContent=messages[err.code]||'Unable to retrieve your location. Use your city instead.';manual.style.display='block';
+}
+async function searchCity(){
+  const q=$('cityInput').value.trim();if(!q){$('cityStatus').textContent='Enter a city name.';return}
+  $('cityStatus').textContent='Finding city…';
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,{headers:{Accept:'application/json'}});
+    if(!r.ok)throw Error('search');const a=await r.json();if(!a.length){$('cityStatus').textContent='City not found. Try a more specific name.';return}
+    const lat=+a[0].lat,lon=+a[0].lon,name=a[0].display_name;
+    $('locationName').textContent=name.split(',')[0];$('locationSub').textContent=`${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    $('cityStatus').textContent='Location found. Calculating…';loadPrayerTimes(lat,lon,name);
+    localStorage.setItem('prayerLocation',JSON.stringify({lat,lon,name}));
+  }catch(e){console.error(e);$('cityStatus').textContent='Could not find the city. Check your internet connection.'}
+}
+async function loadPrayerTimes(lat,lon,label){
+  try{
+    // Custom method: Fajr 20°, no Maghrib angle adjustment, Isha 18°. School 0 = Shafi'i.
+    // Maghrib is then calculated as astronomical sunset + 4 minutes below.
+    const url=`https://api.aladhan.com/v1/timings?latitude=${lat}&longitude=${lon}&method=99&methodSettings=20,null,18&school=0`;
+    const r=await fetch(url);if(!r.ok)throw Error('API');const j=await r.json();
+    if(j.code!==200)throw Error('API response');
+    render(j.data.timings);$('status').textContent='';manual.style.display='none';
+  }catch(e){console.error(e);$('status').textContent='Could not fetch prayer times. Check your internet connection.'}
+}
+function formatTime(s){let [h,m]=s.split(':').map(Number);const ap=h>=12?'PM':'AM';h=h%12||12;return `${h}:${String(m).padStart(2,'0')} ${ap}`}
+function addMinutes(time, mins){
+  const [h,m]=time.split(':').map(Number);
+  const total=h*60+m+mins;
+  const hh=((Math.floor(total/60)%24)+24)%24;
+  const mm=((total%60)+60)%60;
+  return String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0');
+}
+
+function render(t){
+  const maghrib=addMinutes(t.Sunset,4);
+  const rows=[['Fajr',t.Fajr],['Sunrise',t.Sunrise],['Dhuhr',t.Dhuhr],['Asr',t.Asr],['Maghrib',maghrib],['Isha',t.Isha]];
+  $('timesBody').innerHTML=rows.map((r,i)=>`<tr class="${i===4?'special':''}"><td>${r[0]}</td><td>${formatTime(r[1])}</td></tr>`).join('');
+}
+// Restore a manually selected city if one exists.
+try{const saved=JSON.parse(localStorage.getItem('prayerLocation'));if(saved){$('locationName').textContent=saved.name.split(',')[0];$('locationSub').textContent='Saved location';loadPrayerTimes(saved.lat,saved.lon,saved.name)}}catch(e){}
+</script>
+</body></html>
